@@ -1,6 +1,7 @@
 require 'dotenv'
 #require "pg"
 require 'mysql2'
+require 'active_support/core_ext'
 
 require 'httparty'
 
@@ -13,6 +14,76 @@ module MySubMetrics
            }
       $client = Mysql2::Client.new(:host => "localhost", :username => "floyd", :password => '10tul10', :database => 'submetrics')
         
+    end
+
+    def load_metrics_table
+      num_subs = 0
+      num_active = 0
+      num_cancelled = 0
+      total_sales_prev_month = 0
+      now_total_sales = 0
+      total_orders_prev_month = 0
+      results = $client.query("select count(subscription_id) as num_subs from subscriptions")
+      results.each do |row|
+        puts row.inspect
+        num_subs = row['num_subs'].to_i
+        puts num_subs
+        end
+      #update num_subs into metrics table
+      results = $client.query("update metrics set total_subscribers = #{num_subs} where store_id = 1")
+      results = $client.query("select count(subscription_id) as num_active from subscriptions where status = 'ACTIVE' ")
+      results.each do |row|
+        puts row.inspect
+        num_active = row['num_active'].to_i
+        puts num_active
+        end
+      results = $client.query("update metrics set active_subscriptions = #{num_active} where store_id = 1")
+      results = $client.query("select count(subscription_id) as num_cancelled from subscriptions where status = 'CANCELLED'")
+      results.each do |row|
+        puts row.inspect
+        num_cancelled = row['num_cancelled'].to_i
+        puts num_cancelled
+        end
+      results = $client.query("update metrics set cancelled_subscriptions = #{num_cancelled} where store_id = 1")
+      churn = (num_cancelled/num_subs.to_f).round(2)
+      puts churn
+      results = $client.query("update metrics set churn = #{churn} where store_id = 1")
+      my_today = Date.today
+      my_prev_month = my_today << 1
+      my_prev_month_first = my_prev_month.beginning_of_month
+      my_prev_month_last = my_prev_month.end_of_month
+      my_begin_this_month = my_today.beginning_of_month
+      #puts my_begin_this_month.inspect, my_today.inspect
+      #puts my_prev_month_first.inspect, my_prev_month_last.inspect
+      my_prev_month_first_query = my_prev_month_first.strftime("%Y-%m-%dT%H:%M:%S")
+      my_prev_month_last_query = my_prev_month_last.strftime("%Y-%m-%dT23:59:59")
+      my_today_query = my_today.strftime("%Y-%m-%dT%H:%M:%S")
+      my_begin_this_month_query = my_begin_this_month.strftime("%Y-%m-%dT%H:%M:%S")
+      puts my_prev_month_first_query, my_prev_month_last_query
+      puts my_begin_this_month_query, my_today_query
+      results = $client.query("select sum(total_price) as total_sales from charges where processed_at >= \'#{my_prev_month_first_query}\' and processed_at <= \'#{my_prev_month_last_query}\' ")
+      results.each do |row|
+        puts row.inspect
+        total_sales_prev_month = row['total_sales'].to_i
+        puts total_sales_prev_month
+        end
+      results = $client.query("update metrics set prev_total_sales = #{total_sales_prev_month} where store_id = 1")
+      results = $client.query("select sum(total_price) as now_total_sales from charges where processed_at >= \'#{my_begin_this_month_query}\' and processed_at <= \'#{my_today_query}\' ")
+      results.each do |row|
+        puts row.inspect
+        now_total_sales = row['now_total_sales'].to_i
+        puts now_total_sales
+        end
+      results = $client.query("update metrics set total_sales = #{now_total_sales} where store_id = 1")
+      #total_orders_prev_month
+      results = $client.query("select count(order_id) as num_orders from store_orders where processed_at <= \'#{my_prev_month_last_query}\' and processed_at >= \'#{my_prev_month_first_query}\' ")
+      results.each do |row|
+        puts row.inspect
+        total_orders_prev_month = row['num_orders'].to_i
+        puts total_orders_prev_month
+        end
+      results = $client.query("update metrics set prev_sales_orders = #{total_orders_prev_month} where store_id = 1")
+
     end
 
     def get_customer_count
@@ -61,7 +132,7 @@ module MySubMetrics
       num_pages = (charge_number/page_size.to_f).ceil
       puts "number of pages for charges = #{num_pages}"
       my_page_number = 0
-      statement4 = $client.prepare("insert into charge  (
+      statement4 = $client.prepare("insert into charges  (
           address_id,
           billing_address,
           client_details, 
@@ -69,7 +140,7 @@ module MySubMetrics
           customer_hash,
           customer_id,
           first_name,
-          id,
+          charge_id,
           last_name,
           line_items,
           processed_at,
@@ -145,8 +216,8 @@ module MySubMetrics
       num_pages = (number_orders/page_size.to_f).ceil
       puts "number of pages for subscriptions = #{num_pages}"
 
-      statement3 = $client.prepare("insert into store_order  (
-          id,
+      statement3 = $client.prepare("insert into store_orders  (
+          order_id,
           transaction_id,
           charge_status,
           payment_processor,
@@ -171,7 +242,6 @@ module MySubMetrics
           updated_at,
           email,
           line_items,
-          title,
           variant_title,
           subscription_id,
           quantity,
@@ -182,7 +252,7 @@ module MySubMetrics
           billing_address
         
               
-          )  values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          )  values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
       my_page_number = 0
       1.upto(num_pages) do |page|
@@ -241,7 +311,7 @@ module MySubMetrics
           if !billing_address.nil?
             billing_address = mytemp['billing_address'].to_json
             end
-          result3 = statement3.execute(id, transaction_id, charge_status, payment_processor, address_is_active, status, type, charge_id, address_id, shopify_id, shopify_order_id, shopify_order_number, shopify_cart_token, shipping_date, scheduled_at, shipped_date, processed_at, customer_id, first_name, last_name, is_prepaid, created_at, updated_at,  email, line_items,  title, variant_title, subscription_id, quantity, shopify_product_id, properties, total_price, shipping_address, billing_address )
+          result3 = statement3.execute(id, transaction_id, charge_status, payment_processor, address_is_active, status, type, charge_id, address_id, shopify_id, shopify_order_id, shopify_order_number, shopify_cart_token, shipping_date, scheduled_at, shipped_date, processed_at, customer_id, first_name, last_name, is_prepaid, created_at, updated_at,  email, line_items,  variant_title, subscription_id, quantity, shopify_product_id, properties, total_price, shipping_address, billing_address )
 
 
 
@@ -260,7 +330,7 @@ module MySubMetrics
       puts "number of pages for subscriptions = #{num_pages}"
       my_page_number = 0
       statement2 = $client.prepare("insert into subscriptions  (
-              id,
+              subscription_id,
               address_id,
             customer_id,
         created_at,
@@ -333,7 +403,7 @@ module MySubMetrics
       num_pages = (total_customers/page_size.to_f).ceil
       puts "number of pages for customers = #{num_pages}"
       my_page_number = 0
-      statement1 = $client.prepare("insert into customer  (
+      statement1 = $client.prepare("insert into customers  (
               id,
               hash,
               shopify_customer_id,

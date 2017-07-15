@@ -1,3 +1,13 @@
+require './submetrics'
+require 'resque/tasks'
+require 'sinatra/activerecord'
+require 'sinatra/activerecord/rake'
+
+
+
+
+
+
 require_relative "get_data"
 
 desc "Load Customer Table"
@@ -22,4 +32,11 @@ desc "Load charges Table"
 task :load_charge do
   MySubMetrics::RechargeInfo.new.load_charges_table
 
+end
+
+
+
+desc "Load Metrics table"
+task :load_metrics do
+  MySubMetrics::RechargeInfo.new.load_metrics_table
 end
