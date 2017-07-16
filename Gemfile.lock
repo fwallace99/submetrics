@@ -58,6 +58,7 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord
+  activesupport
   dotenv
   httparty
   mysql2

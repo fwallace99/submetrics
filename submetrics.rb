@@ -21,7 +21,7 @@ configure do
     set :server, :puma
     Dotenv.load
     #set :protection
-    set :database, {adapter: "mysql2", database: "submetrics"}
+    #set :database, {adapter: "mysql2", database: "submetrics"}
     #ENV variables here, REDIS
     #set :database, {adapter: "mysql2", database: "submetrics"}
 
