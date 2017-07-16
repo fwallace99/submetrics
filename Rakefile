@@ -3,12 +3,14 @@ require 'resque/tasks'
 require 'sinatra/activerecord'
 require 'sinatra/activerecord/rake'
 
-
-
-
-
-
 require_relative "get_data"
+
+namespace :db do
+  task :load_config do
+    require "./submetrics"
+  end
+end
+
 
 desc "Load Customer Table"
 task :load_customer do
