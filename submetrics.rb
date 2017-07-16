@@ -5,6 +5,7 @@ require 'json'
 require 'httparty'
 require 'dotenv'
 require 'resque'
+require 'mysql2'
 #require 'active_support/core_ext'
 require 'sinatra/activerecord'
 
