@@ -1,4 +1,4 @@
-require './submetrics'
+#require './submetrics'
 require 'resque/tasks'
 require 'sinatra/activerecord'
 require 'sinatra/activerecord/rake'
