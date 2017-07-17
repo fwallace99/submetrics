@@ -20,7 +20,7 @@ class CreateAltSubs < ActiveRecord::Migration[5.1]
       t.integer :charge_interval_frequency
       t.string :cancellation_reason
       t.integer :order_day_of_month
-      t.integer :oder_day_of_week
+      t.integer :order_day_of_week
       t.text :properties
       t.string :sku
       t.bigint :shopify_variant_id

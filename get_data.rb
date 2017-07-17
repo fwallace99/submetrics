@@ -2,19 +2,53 @@ require 'dotenv'
 #require "pg"
 require 'mysql2'
 require 'active_support/core_ext'
+require "resque"
 
 require 'httparty'
 
+require_relative 'worker_helper'
+
 module MySubMetrics
   class RechargeInfo
+
+
     def initialize
-      $recharge_access_token = "21ac88718be7466a983368e8a1a2fb4c"
-      $my_get_header =  {
-           "X-Recharge-Access-Token" => "#{$recharge_access_token}"
-           }
-      $client = Mysql2::Client.new(:host => "localhost", :username => "floyd", :password => '10tul10', :database => 'submetrics')
-        
+      #@shop_id = shop_id
+      #$recharge_access_token = "21ac88718be7466a983368e8a1a2fb4c"
+      #$my_get_header =  {
+      #     "X-Recharge-Access-Token" => "#{$recharge_access_token}"
+      #     }
+      $host = "localhost"
+      $username = "floyd"
+      $password = "10tul10"
+      $database = "submetrics"
+      @client = Mysql2::Client.new(:host => "localhost", :username => "floyd", :password => '10tul10', :database => 'submetrics')
+      @shop_ids = Array.new
+      puts "starting .."
+      results = @client.query("select id, api_key from shops")
+      results.each do |row|
+          #puts row.inspect
+          my_id = row['id']
+          my_api_key = row['api_key']
+          puts "Doing store id: #{my_id}"
+          my_hash = {"store_id" => my_id, "api_key" => my_api_key}
+          @shop_ids << my_hash
+          end
+      process_shops
     end
+
+    def process_shops
+      @shop_ids.each do |myshop|
+        puts myshop.inspect
+        #Resque.enqueue(MyChargeTable, myshop)
+        #Resque.enqueue(MyOrderTable, myshop)
+        #Resque.enqueue(MyCustomerTable, myshop)
+        Resque.enqueue(MySubscriptionTable, myshop)
+        end
+
+    end
+
+    
 
     def load_metrics_table
       num_subs = 0
@@ -124,6 +158,76 @@ module MySubMetrics
       puts num_charges
       return num_charges
     end
+
+    class MySubscriptionTable
+      extend SubmetricsHelper
+      @queue = "customer_table"
+      def self.perform(params)
+        puts "Loading Subscription Table with latest data"
+        puts params.inspect
+        my_get_header =  {
+           "X-Recharge-Access-Token" => "#{params['api_key']}"
+           }
+        store_id = params['store_id']
+        num_subs = get_subscription_count(my_get_header)
+        puts "We have #{num_subs} subscriptions to download"
+        load_subscriptions_table(my_get_header, num_subs, store_id)
+      end
+
+    end
+
+
+    class MyChargeTable
+      extend SubmetricsHelper
+      @queue = "charge_table"
+      def self.perform(params)
+        puts "Loading Charge Table with latest data"
+        puts params.inspect
+        my_get_header =  {
+           "X-Recharge-Access-Token" => "#{params['api_key']}"
+           }
+        store_id = params['store_id']
+        num_charges = get_charges_count(my_get_header)
+        puts "We have #{num_charges} charges to download"
+        load_charges_table(my_get_header, num_charges, store_id)
+      end
+    end
+
+    class MyOrderTable
+      extend SubmetricsHelper
+      @queue = "order_table"
+      def self.perform(params)
+        puts "Loading Order Table with latest data"
+        puts params.inspect
+        store_id = params['store_id']
+        my_get_header =  {
+           "X-Recharge-Access-Token" => "#{params['api_key']}"
+           }
+        store_id = params['store_id']
+        num_orders = get_orders_count(my_get_header)
+        puts "We have #{num_orders} orders to download"
+        load_order_table(my_get_header, num_orders, store_id)
+      end
+    end
+
+
+  class  MyCustomerTable
+    extend SubmetricsHelper
+    @queue = "customer_table"
+    def self.perform(params)
+        puts "Loading customer Table with latest data"
+        puts params.inspect
+        store_id = params['store_id']
+        my_get_header =  {
+           "X-Recharge-Access-Token" => "#{params['api_key']}"
+           }
+        store_id = params['store_id']
+        num_customers = get_customer_count(my_get_header)
+        puts "We have #{num_customers} customers to download"
+        load_customer_table(my_get_header, num_customers, store_id)
+      end
+  
+  end
 
     def load_charges_table
       charge_number = get_charges_count

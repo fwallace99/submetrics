@@ -4,7 +4,17 @@ require 'sinatra/activerecord'
 require 'sinatra/activerecord/rake'
 
 require_relative "get_data"
+require_relative "task_caller"
 
+desc "calling get_data tasks"
+task :task_caller do
+  TaskCaller::MyTasks.new
+end
+
+desc "setting up shops"
+task :shop_setup do
+  MySubMetrics::RechargeInfo.new
+end
 
 
 

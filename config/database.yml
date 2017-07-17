@@ -1,17 +1,17 @@
 development:
     adapter:  mysql2
     encoding: utf8
-    #database: submetrics
+    database: submetrics
     #pool: 5
-    #username: floyd
-    #password: 10tul10
-    #host: localhost
+    username: floyd
+    password: 10tul10
+    host: localhost
     #username: huc5zdtbvxhz596e
     #password: cjufyxjnjmg86n4l
     #host: erxv1bzckceve5lh.cbetxkdyhwsb.us-east-1.rds.amazonaws.com
     #url:  mysql2://huc5zdtbvxhz596e:cjufyxjnjmg86n4l@erxv1bzckceve5lh.cbetxkdyhwsb.us-east-1.rds.amazonaws.com:3306/i75mq9gr8hk0zf12
-    #port: 3306
-    #secure_auth: false
+    port: 3306
+    secure_auth: false
 
 
 production: 
